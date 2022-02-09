@@ -1,0 +1,4 @@
+mjs/*.tsbuildinfo
+node_modules
+
+.vscode

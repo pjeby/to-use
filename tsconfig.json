@@ -1,0 +1,11 @@
+{
+    "compilerOptions": {
+        "target": "es2015",
+        "module": "CommonJS",
+        "outDir": "./cjs",
+        "newLine": "lf",
+        "lib": ["es2015"]
+    },
+    "include": [ "use-this.ts" ],
+    "references": [{"path": "./tsconfig.esm.json"}]
+}
