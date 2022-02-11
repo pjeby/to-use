@@ -96,60 +96,77 @@ let used: Key[];
 /**
  * The "global defaults" configuration and currrent-context accessor
  */
-export const use = <GlobalContext> Object.defineProperties(
-    (function newCtx(prev?): Context | GlobalContext {
+export const use = <GlobalContext> (function () {
+    return Object.defineProperties(<unknown> newCtx(), {
+        this: {
+            get(){
+                if (ctx) return ctx;
+                throw new TypeError("No current context");
+            }
+        },
+        me: { value: useMe }
+    });
 
-        /** The actual configuration store: a map w/optional parent */
-        type Registry = Map<Key, Entry<any>> & {prev?: Registry}
+    /** The actual configuration store: a map w/optional parent */
+    type Registry = Map<Key, Entry<any>> & {prev?: Registry}
 
-        /** Entries track a state and value or factory for each key, and optionally how the value was arrived at */
-        type Entry<T> = {s: State, v: T | Factory<T>, d?: Deps<T>}
+    /** Entries track a state and value or factory for each key, and optionally how the value was arrived at */
+    type Entry<T> = {s: State, v: T | Factory<T>, d?: Deps<T>}
 
-        /** The state of a specific key: has it been read, is it a factory, etc. */
-        const enum State { wasRead = 0, isUnset, hasValue, hasFactory, isCreating, hasError }
+    /** The state of a specific key: has it been read, is it a factory, etc. */
+    const enum State { wasRead = 0, hasValue, hasFactory, isCreating, hasError }
 
-        /** When a value is inherited, we track the factory, context, and depended-on keys that made it */
-        type Deps<T> = {c: Context, k: Key[], f: Factory<T>}
+    /** When a value is inherited, we track the factory, context, and depended-on keys that made it */
+    type Deps<T> = {c: Context, k: Key[], f: Factory<T>}
 
+    function newCtx(prev?: Registry): Context {
         const registry: Registry = new Map;
-        registry.prev = <Registry>prev;
+        registry.prev = prev;
 
         let me = <Context> Object.assign(
             !prev // global context vs. regular context
             ?   <K extends Key>(key: K): Provides<K> => use.this(key) // delegate to current
             :   <K extends Key>(key: K): Provides<K> => {
-                    let entry = getEntry<any>(key, registry);
+                    let entry = registry.get(key);
+                    if (!entry) {
+                        for(let r = registry.prev; r; r = r.prev) {
+                            if (entry = r.get(key)) {
+                                entry = {...entry, s: entry.s || State.hasValue}
+                                break
+                            }
+                        }
+                        entry = entry || {s: State.hasFactory, v: defaultLookup}
+                        registry.set(key, entry);
+                    }
+
+                    let deps: Deps<any>, factory: Factory<any>, keys: Key[];
 
                     // simple state machine to resolve parameter state/value
                     for(;;) switch (entry.s) {
                         case State.wasRead:
                             if (ctx === me && used) used.push(key);
                             return entry.v;
-                        case State.isUnset:
-                            resolve(key, entry, defaultLookup);
-                            break;
                         case State.hasValue:
-                            const deps = entry.d;
+                            deps = entry.d;
                             // Validate dependencies are unchanged before inherit
                             if (!deps || exec(() => deps.k.every((k: Key) => me(k) === deps.c(k)))) {
                                 // No deps or they all match: just inherit the value
                                 entry.s = State.wasRead;
-                                entry.v = entry.v;   // Lock current value and deps in case of inheritance
-                                entry.d = deps;
                                 break;
                             }
-                            // Reconfigure as a factory
-                            entry.s = State.hasFactory;
+                            // Reconfigure as a factory and fall through
                             entry.v = deps.f;
-                            entry.d = null;
-                            // fall through to resolve
                         case State.hasFactory:
-                            resolve(key, entry, entry.v);
+                            entry.s = State.isCreating; // catch dependency cycles
+                            setEntry(registry, key, State.wasRead, exec(factory = entry.v, key, keys = []));
+                            // Save dependencies so child contexts can check before inheriting
+                            if (keys.length) entry.d = {c: me, f: factory, k: keys};
                             break;
                         case State.isCreating:
-                            setEntry(key, State.hasError, new Error(
+                            entry.s = State.hasError;
+                            entry.v = new Error(
                                 `Factory ${String(entry.v)} didn't resolve ${String(key)}`
-                            ), entry);
+                            );
                             // fall through to throw
                         case State.hasError:
                             throw entry.v;
@@ -157,27 +174,18 @@ export const use = <GlobalContext> Object.defineProperties(
                 },
             {
                 def(key: Key, factory: (use: Context) => any){
-                    return setEntry(key, State.hasFactory, factory);
+                    return setEntry(registry, key, State.hasFactory, factory), me;
                 },
                 set(key: Key, value: any)  {
-                    return setEntry(key, State.hasValue, value);
+                    return setEntry(registry, key, State.hasValue, value), me;
                 },
                 fork<K extends Key>(key?: K): Provides<K> | Context {
-                    const ctx = <Context> newCtx(registry);
+                    const ctx = newCtx(registry);
                     return key != undefined ? ctx(key) : ctx;
                 }
             }
         );
         return prev ? me.use = me : me;
-
-        function resolve(key: Key, entry: Entry<any>, factory: Factory<any>): void {
-            entry.s = State.isCreating; // catch dependency cycles
-            entry.v = factory;
-            const deps: Key[] = [];
-            setEntry(key, State.wasRead, exec(factory, key, deps), entry);
-            // Save dependencies so child contexts can check before inheriting
-            if (deps.length) entry.d = {c: me, f: factory, k: deps};
-        }
 
         function exec(fn: Factory<any>, key?: Key, deps?: Key[]) {
             const oldCtx = ctx, oldDeps = used;
@@ -187,61 +195,42 @@ export const use = <GlobalContext> Object.defineProperties(
                 ctx = oldCtx; used = oldDeps;
             }
         }
-
-        function setEntry(key: Key, state: State, value: any, entry: Entry<any> = getEntry(key, registry)) {
-            if (!entry.s) throw new Error(`Already read: ${String(key)}`);
-            entry.s = state;
-            entry.v = value;
-            entry.d = null;  // once we've been changed, parent deps don't matter
-            return me;
-        }
-
-        function getEntry<T>(key: Key, reg: Registry): Entry<T> {
-            let entry = reg.get(key);
-            if (!entry) {
-                if (reg.prev) {
-                    entry = Object.create(getEntry(key, reg.prev));  // Inherit the parameter
-                    if (!entry.s) entry.s = State.hasValue;          // But make it writable if already read
-                } else {
-                    entry = {s: State.isUnset, v: null, d: null};
-                }
-                registry.set(key, entry);
-            }
-            return entry;
-        }
-
-        /** Default lookup: handles [use.me]() and creating service instances */
-        function defaultLookup<K extends Key>(ctx: Context, key: K): Provides<K> {
-            if (typeof key[useMe] === "function") return (key as StaticFactory<Provides<K>>)[useMe](ctx, key);
-            if (isClass<Provides<K>>(key)) return new key();
-            throw new ReferenceError(`No config for ${String(key)}`);
-        }
-
-        /**
-         * Fast class vs function checker: detects native classes, subclasses, and base
-         * classes with public instance methods on their prototype. It has NO false positives:
-         * if it returns true, the thing is definitely a class. But it *can* return a false
-         * negative for emulated or "old style" classes implemented using just a constructor
-         * function with no base class and no prototype methods.  (If you're using this library,
-         * though, you probably want to not be using emulated classes as your keys, since you
-         * need an environment that supports native classes anyway.)
-         */
-        function isClass<T>(f: any): f is new (...args: any[]) => T {
-            return typeof f === "function" && f.prototype !== void 0 && (
-                // Classes must be functions with a prototype, and also:
-                Object.getPrototypeOf(f.prototype) !== Object.prototype || // be a subclass of something,
-                Object.getOwnPropertyNames(f.prototype).length > 1 ||      // have public methods,
-                f.toString().startsWith("class")                           // or be a native class
-            )
-        }
-    })(),
-    {
-        this: {
-            get(){
-                if (ctx) return ctx;
-                throw new TypeError("No current context");
-            }
-        },
-        me: { value: useMe }
     }
-);
+
+    function setEntry(reg: Registry, key: Key, s: State, v: any) {
+        if (reg.has(key)) {
+            const entry = reg.get(key);
+            if (!entry.s) throw new Error(`Already read: ${String(key)}`);
+            entry.s = s;
+            entry.v = v;
+            entry.d = null;
+        } else {
+            reg.set(key, {s, v});
+        }
+    }
+
+    /** Default lookup: handles [use.me]() and creating service instances */
+    function defaultLookup<K extends Key>(ctx: Context, key: K): Provides<K> {
+        if (typeof key[useMe] === "function") return (key as StaticFactory<Provides<K>>)[useMe](ctx, key);
+        if (isClass<Provides<K>>(key)) return new key();
+        throw new ReferenceError(`No config for ${String(key)}`);
+    }
+
+    /**
+     * Fast class vs function checker: detects native classes, subclasses, and base
+     * classes with public instance methods on their prototype. It has NO false positives:
+     * if it returns true, the thing is definitely a class. But it *can* return a false
+     * negative for emulated or "old style" classes implemented using just a constructor
+     * function with no base class and no prototype methods.  (If you're using this library,
+     * though, you probably want to not be using emulated classes as your keys, since you
+     * need an environment that supports native classes anyway.)
+     */
+    function isClass<T>(f: any): f is new (...args: any[]) => T {
+        return typeof f === "function" && f.prototype !== void 0 && (
+            // Classes must be functions with a prototype, and also:
+            Object.getPrototypeOf(f.prototype) !== Object.prototype || // be a subclass of something,
+            Object.getOwnPropertyNames(f.prototype).length > 1 ||      // have public methods,
+            f.toString().startsWith("class")                           // or be a native class
+        )
+    }
+}());

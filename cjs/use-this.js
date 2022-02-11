@@ -9,103 +9,104 @@ let used;
 /**
  * The "global defaults" configuration and currrent-context accessor
  */
-exports.use = Object.defineProperties((function newCtx(prev) {
-    const registry = new Map;
-    registry.prev = prev;
-    let me = Object.assign(!prev // global context vs. regular context
-        ? (key) => exports.use.this(key) // delegate to current
-        : (key) => {
-            let entry = getEntry(key, registry);
-            // simple state machine to resolve parameter state/value
-            for (;;)
-                switch (entry.s) {
-                    case 0 /* wasRead */:
-                        if (ctx === me && used)
-                            used.push(key);
-                        return entry.v;
-                    case 1 /* isUnset */:
-                        resolve(key, entry, defaultLookup);
-                        break;
-                    case 2 /* hasValue */:
-                        const deps = entry.d;
-                        // Validate dependencies are unchanged before inherit
-                        if (!deps || exec(() => deps.k.every((k) => me(k) === deps.c(k)))) {
-                            // No deps or they all match: just inherit the value
-                            entry.s = 0 /* wasRead */;
-                            entry.v = entry.v; // Lock current value and deps in case of inheritance
-                            entry.d = deps;
+exports.use = (function () {
+    return Object.defineProperties(newCtx(), {
+        this: {
+            get() {
+                if (ctx)
+                    return ctx;
+                throw new TypeError("No current context");
+            }
+        },
+        me: { value: useMe }
+    });
+    function newCtx(prev) {
+        const registry = new Map;
+        registry.prev = prev;
+        let me = Object.assign(!prev // global context vs. regular context
+            ? (key) => exports.use.this(key) // delegate to current
+            : (key) => {
+                let entry = registry.get(key);
+                if (!entry) {
+                    for (let r = registry.prev; r; r = r.prev) {
+                        if (entry = r.get(key)) {
+                            entry = Object.assign(Object.assign({}, entry), { s: entry.s || 1 /* hasValue */ });
                             break;
                         }
-                        // Reconfigure as a factory
-                        entry.s = 3 /* hasFactory */;
-                        entry.v = deps.f;
-                        entry.d = null;
-                    // fall through to resolve
-                    case 3 /* hasFactory */:
-                        resolve(key, entry, entry.v);
-                        break;
-                    case 4 /* isCreating */:
-                        setEntry(key, 5 /* hasError */, new Error(`Factory ${String(entry.v)} didn't resolve ${String(key)}`), entry);
-                    // fall through to throw
-                    case 5 /* hasError */:
-                        throw entry.v;
+                    }
+                    entry = entry || { s: 2 /* hasFactory */, v: defaultLookup };
+                    registry.set(key, entry);
                 }
-        }, {
-        def(key, factory) {
-            return setEntry(key, 3 /* hasFactory */, factory);
-        },
-        set(key, value) {
-            return setEntry(key, 2 /* hasValue */, value);
-        },
-        fork(key) {
-            const ctx = newCtx(registry);
-            return key != undefined ? ctx(key) : ctx;
-        }
-    });
-    return prev ? me.use = me : me;
-    function resolve(key, entry, factory) {
-        entry.s = 4 /* isCreating */; // catch dependency cycles
-        entry.v = factory;
-        const deps = [];
-        setEntry(key, 0 /* wasRead */, exec(factory, key, deps), entry);
-        // Save dependencies so child contexts can check before inheriting
-        if (deps.length)
-            entry.d = { c: me, f: factory, k: deps };
-    }
-    function exec(fn, key, deps) {
-        const oldCtx = ctx, oldDeps = used;
-        try {
-            ctx = me;
-            used = deps;
-            return fn(me, key);
-        }
-        finally {
-            ctx = oldCtx;
-            used = oldDeps;
-        }
-    }
-    function setEntry(key, state, value, entry = getEntry(key, registry)) {
-        if (!entry.s)
-            throw new Error(`Already read: ${String(key)}`);
-        entry.s = state;
-        entry.v = value;
-        entry.d = null; // once we've been changed, parent deps don't matter
-        return me;
-    }
-    function getEntry(key, reg) {
-        let entry = reg.get(key);
-        if (!entry) {
-            if (reg.prev) {
-                entry = Object.create(getEntry(key, reg.prev)); // Inherit the parameter
-                if (!entry.s)
-                    entry.s = 2 /* hasValue */; // But make it writable if already read
+                let deps, factory, keys;
+                // simple state machine to resolve parameter state/value
+                for (;;)
+                    switch (entry.s) {
+                        case 0 /* wasRead */:
+                            if (ctx === me && used)
+                                used.push(key);
+                            return entry.v;
+                        case 1 /* hasValue */:
+                            deps = entry.d;
+                            // Validate dependencies are unchanged before inherit
+                            if (!deps || exec(() => deps.k.every((k) => me(k) === deps.c(k)))) {
+                                // No deps or they all match: just inherit the value
+                                entry.s = 0 /* wasRead */;
+                                break;
+                            }
+                            // Reconfigure as a factory and fall through
+                            entry.v = deps.f;
+                        case 2 /* hasFactory */:
+                            entry.s = 3 /* isCreating */; // catch dependency cycles
+                            setEntry(registry, key, 0 /* wasRead */, exec(factory = entry.v, key, keys = []));
+                            // Save dependencies so child contexts can check before inheriting
+                            if (keys.length)
+                                entry.d = { c: me, f: factory, k: keys };
+                            break;
+                        case 3 /* isCreating */:
+                            entry.s = 4 /* hasError */;
+                            entry.v = new Error(`Factory ${String(entry.v)} didn't resolve ${String(key)}`);
+                        // fall through to throw
+                        case 4 /* hasError */:
+                            throw entry.v;
+                    }
+            }, {
+            def(key, factory) {
+                return setEntry(registry, key, 2 /* hasFactory */, factory), me;
+            },
+            set(key, value) {
+                return setEntry(registry, key, 1 /* hasValue */, value), me;
+            },
+            fork(key) {
+                const ctx = newCtx(registry);
+                return key != undefined ? ctx(key) : ctx;
             }
-            else {
-                entry = { s: 1 /* isUnset */, v: null, d: null };
+        });
+        return prev ? me.use = me : me;
+        function exec(fn, key, deps) {
+            const oldCtx = ctx, oldDeps = used;
+            try {
+                ctx = me;
+                used = deps;
+                return fn(me, key);
             }
-            registry.set(key, entry);
+            finally {
+                ctx = oldCtx;
+                used = oldDeps;
+            }
         }
-        return entry;
+    }
+    function setEntry(reg, key, s, v) {
+        if (reg.has(key)) {
+            const entry = reg.get(key);
+            if (!entry.s)
+                throw new Error(`Already read: ${String(key)}`);
+            entry.s = s;
+            entry.v = v;
+            entry.d = null;
+        }
+        else {
+            reg.set(key, { s, v });
+        }
     }
     /** Default lookup: handles [use.me]() and creating service instances */
     function defaultLookup(ctx, key) {
@@ -132,13 +133,4 @@ exports.use = Object.defineProperties((function newCtx(prev) {
             f.toString().startsWith("class") // or be a native class
         );
     }
-})(), {
-    this: {
-        get() {
-            if (ctx)
-                return ctx;
-            throw new TypeError("No current context");
-        }
-    },
-    me: { value: useMe }
-});
+}());
