@@ -118,6 +118,17 @@ describe("Context", () => {
             assert.equal(ctx.use(aNumber), 777);  // was only called once
         });
 
+        it("rethrows the same error for a factory that errored", () => {
+            const ctx = use.fork();
+            let num = 1;
+            ctx.def(aNumber, () => {throw new Error(`num: ${num++}`)});
+            assert.throws(() => ctx(aNumber), (e1: Error) => {
+                assert.equal(e1.message, "num: 1");
+                assert.throws(() => ctx(aNumber), (e2: Error) => (e1 === e2));
+                return true;
+            })
+        })
+
         describe("in a child context", () => {
             it("uses result of parent's factory if already used in parent", () => {
                 const ctx = use.fork();

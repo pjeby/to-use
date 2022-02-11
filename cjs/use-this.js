@@ -56,18 +56,24 @@ exports.use = (function () {
                             // Reconfigure as a factory and fall through
                             entry.v = deps.f;
                         case 2 /* hasFactory */:
-                            entry.s = 3 /* isCreating */; // catch dependency cycles
-                            setEntry(registry, key, 0 /* wasRead */, exec(factory = entry.v, key, keys = []));
-                            // Save dependencies so child contexts can check before inheriting
-                            if (keys.length)
-                                entry.d = { c: me, f: factory, k: keys };
-                            break;
-                        case 3 /* isCreating */:
-                            entry.s = 4 /* hasError */;
-                            entry.v = new Error(`Factory ${String(entry.v)} didn't resolve ${String(key)}`);
-                        // fall through to throw
-                        case 4 /* hasError */:
+                            entry.s = 4 /* isCreating */; // catch dependency cycles
+                            try {
+                                setEntry(registry, key, 0 /* wasRead */, exec(factory = entry.v, key, keys = []));
+                                // Save dependencies so child contexts can check before inheriting
+                                if (keys.length)
+                                    entry.d = { c: me, f: factory, k: keys };
+                                break;
+                            }
+                            catch (e) {
+                                entry.s = 3 /* hasError */;
+                                entry.v = e;
+                                entry.d = null;
+                                // fall through to error
+                            }
+                        case 3 /* hasError */:
                             throw entry.v;
+                        case 4 /* isCreating */:
+                            throw new Error(`Factory ${String(entry.v)} didn't resolve ${String(key)}`);
                     }
             }, {
             def(key, factory) {

@@ -114,7 +114,7 @@ export const use = <GlobalContext> (function () {
     type Entry<T> = {s: State, v: T | Factory<T>, d?: Deps<T>}
 
     /** The state of a specific key: has it been read, is it a factory, etc. */
-    const enum State { wasRead = 0, hasValue, hasFactory, isCreating, hasError }
+    const enum State { wasRead = 0, hasValue, hasFactory, hasError, isCreating }
 
     /** When a value is inherited, we track the factory, context, and depended-on keys that made it */
     type Deps<T> = {c: Context, k: Key[], f: Factory<T>}
@@ -158,18 +158,23 @@ export const use = <GlobalContext> (function () {
                             entry.v = deps.f;
                         case State.hasFactory:
                             entry.s = State.isCreating; // catch dependency cycles
-                            setEntry(registry, key, State.wasRead, exec(factory = entry.v, key, keys = []));
-                            // Save dependencies so child contexts can check before inheriting
-                            if (keys.length) entry.d = {c: me, f: factory, k: keys};
-                            break;
-                        case State.isCreating:
-                            entry.s = State.hasError;
-                            entry.v = new Error(
-                                `Factory ${String(entry.v)} didn't resolve ${String(key)}`
-                            );
-                            // fall through to throw
+                            try {
+                                setEntry(registry, key, State.wasRead, exec(factory = entry.v, key, keys = []));
+                                // Save dependencies so child contexts can check before inheriting
+                                if (keys.length) entry.d = {c: me, f: factory, k: keys};
+                                break;
+                            } catch (e) {
+                                entry.s = State.hasError;
+                                entry.v = e;
+                                entry.d = null;
+                                // fall through to error
+                            }
                         case State.hasError:
                             throw entry.v;
+                        case State.isCreating:
+                            throw new Error(
+                                `Factory ${String(entry.v)} didn't resolve ${String(key)}`
+                            );
                     }
                 },
             {

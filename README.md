@@ -225,7 +225,7 @@ So what's going on here?  Well, first, `use.this` is an accessor for the *curren
 
 In the above example, the  `App` class saves `use.this` as `this.use`, so it can fork new children off of it to run requests in.  Each child context will spawn its own `RequestService`, along with any other services used by the `RequestService` that haven't already been used in the `App` instance's context.
 
-The way this inheritance works is that when we set up factories and values using `.def()` and `.set()`, we aren't really "setting" the values, we're just defining how to *get* them.  In this state, you could say that the values are "pending", like an unresolved promise.  But when we look them up with `use()`, they are then "resolved" to an actual value.
+The way this inheritance works is that when we set up factories and values using `.def()` and `.set()`, we aren't really "setting" the values, we're just defining how to *get* them.  In this state, you could say that the values are "pending", like an unresolved promise.  But when we look them up with `use()`, they are then "resolved" to an actual value (or error).
 
 When we `fork()` a child context, any lookups that happen in it will look up either the pending definition or resolved value from the parent context (unless they're overridden by a definition in the child).  If it's a pending definition, the factory will be called with the *child* context active, creating a new instance in the child instead of sharing that service with the parent!  But if the parent context already `use()`d the definition, then it's a resolved value, and ends up shared by the child.
 
@@ -236,6 +236,7 @@ Thus, in our example above, any services that `App` or its dependencies used pri
 XXX scope and owner, scoping keys
 
 ### Creating "Smart Key" objects
+### Error Handling
 ### Creating a Component Framework
 ### Managing Configuration Files
 
