@@ -2,14 +2,14 @@
 export interface Types {}
 
 type Key = TypedKey | UntypedKey
-type TypedKey = keyof Types | Constructor<any> | StaticFactory<any>
+type TypedKey = keyof Types | Constructor<any> | Recipe<any>
 type UntypedKey = Function | object
 type Constructor<T> = (new (...args: any[]) => T) | (abstract new (...args: any[]) => T);
 type Factory<T> = (ctx: Context, key: Key) => T;
 
 type Provides<K> =
     K extends Constructor<infer T> ? T :
-    K extends StaticFactory<infer T> ? T :
+    K extends Recipe<infer T> ? T :
     K extends keyof Types ? Types[K] :
     K extends UntypedKey ? unknown :
     never
@@ -77,10 +77,10 @@ export interface Configurable extends Use {
 export interface Context extends Configurable, Useful {}
 
 /**
- * An object that can be used as a key and provides a default factory.
- * (Typically implemented as a class with a static method, hence the name.)
+ * An object that can be used as a key and provides an in-built default factory
+ * via its `[use.me]` method. (Typically implemented as a class's static method.)
  */
- export interface StaticFactory<T> {
+ export interface Recipe<T> {
     [useMe]: Factory<T>
 }
 
@@ -216,7 +216,7 @@ export const use = <GlobalContext> (function () {
 
     /** Default lookup: handles [use.me]() and creating service instances */
     function defaultLookup<K extends Key>(ctx: Context, key: K): Provides<K> {
-        if (typeof key[useMe] === "function") return (key as StaticFactory<Provides<K>>)[useMe](ctx, key);
+        if (typeof key[useMe] === "function") return (key as Recipe<Provides<K>>)[useMe](ctx, key);
         if (isClass<Provides<K>>(key)) return new key();
         throw new ReferenceError(`No config for ${String(key)}`);
     }

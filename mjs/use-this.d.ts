@@ -2,11 +2,11 @@
 export interface Types {
 }
 declare type Key = TypedKey | UntypedKey;
-declare type TypedKey = keyof Types | Constructor<any> | StaticFactory<any>;
+declare type TypedKey = keyof Types | Constructor<any> | Recipe<any>;
 declare type UntypedKey = Function | object;
 declare type Constructor<T> = (new (...args: any[]) => T) | (abstract new (...args: any[]) => T);
 declare type Factory<T> = (ctx: Context, key: Key) => T;
-declare type Provides<K> = K extends Constructor<infer T> ? T : K extends StaticFactory<infer T> ? T : K extends keyof Types ? Types[K] : K extends UntypedKey ? unknown : never;
+declare type Provides<K> = K extends Constructor<infer T> ? T : K extends Recipe<infer T> ? T : K extends keyof Types ? Types[K] : K extends UntypedKey ? unknown : never;
 /**
  * A callable that looks up lazy-immutable cached values
  */
@@ -62,10 +62,10 @@ export interface Useful {
 export interface Context extends Configurable, Useful {
 }
 /**
- * An object that can be used as a key and provides a default factory.
- * (Typically implemented as a class with a static method, hence the name.)
+ * An object that can be used as a key and provides an in-built default factory
+ * via its `[use.me]` method. (Typically implemented as a class's static method.)
  */
-export interface StaticFactory<T> {
+export interface Recipe<T> {
     [useMe]: Factory<T>;
 }
 declare const useMe: unique symbol;

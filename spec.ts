@@ -1,4 +1,4 @@
-import {StaticFactory, Context, use} from "./use-this";
+import {Recipe, Context, use} from "./use-this";
 import {strict as assert} from 'assert';
 
 declare module "./use-this" {
@@ -184,7 +184,7 @@ describe("Context", () => {
                         return "X";
                     }
                 }
-                const Y: StaticFactory<string> = {
+                const Y: Recipe<string> = {
                     [use.me](use) {
                         assert.equal(this, Y);
                         assert.equal(use, ctx);
