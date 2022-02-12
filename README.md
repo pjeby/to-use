@@ -245,7 +245,14 @@ XXX scope and owner, scoping keys
 
 ### Context Objects
 
-XXX
+Context objects are callables that look up a key and return a value, following these consistency rules for a given key and context:
+
+- Every call with the same key to the same context returns the exact same result or throws the same error instance
+- After the first lookup of a key in a context, no calls to `.set()` or `.def()` can change the result of future calls, no matter what context or key they're called on.  (And `.set()` or `.def()` on the same context will produce an error.)
+- If no value or factory is defined in the target context, the nearest parent (searching upward in the context tree) with a value or factory is used to generate the return value
+    - If the found value was created by a factory, the arguments used by that factory are **looked up in the target context** to see if they're identical: if not, the factory is called instead of inheriting its result.  (Note that this means those other keys will now be resolved -- and thus unchangeable -- as a side effect.)
+
+In addition to being callable, Contexts have the following methods:
 
 #### `.use(key)`
 
@@ -253,29 +260,33 @@ XXX
 
 #### `.fork(key?)`
 
+Create a new subcontext and return it, or if `key` is given, return the result of looking `key` up in the subcontext.  The subcontext will inherit values and factories from its parent, but will not implicitly resolve anything in it.  (That is, you can continue changing things in a parent context even if they've been looked up in a child context.  It is only direct lookups that are required to be consistent.)
+
 #### `.set(key, value)`
 
 `.set(key, value)` sets the value the key will have in the context, unless `.use(key)` has already been called for the context (in which case an error will occur).  Forked sub-contexts of the context will inherit the new value, unless `.set()`, `.def()`, or `.use()` have already been called for that key in that context or an intermediate context between it and the context where `.set()` was called.
 
-#### `.def(key, factory)`
+#### `.def(key, factory: (ctx, key) => result)`
 
-`.def(key, factory)` assigns a factory for computing the value of `key` in the context, unless `.use(key)` has already been called for the context (in which case an error will occur).  Upon `.use()` of the key, the factory will be called with two arguments: the context it's being looked up in, and the key.  It should return a value of the appropriate type.
+`.def(key, factory)` assigns a factory for computing the value of `key` in the context, unless `.use(key)` has already been called for the context (in which case an error will occur).  Upon `.use()` of the key, the factory will be called with two arguments: the context it's being looked up in, and the key.  It should return a value of the appropriate type for the given key.
 
 Forked sub-contexts will inherit either the factory or its result, depending on the circumstances:
 
 - If `.set()`, `.def()`, or `.use()` have already been called for that key in that context or an intermediate context, nothing will be inherited
 - If `.use()` is called in the subcontext before it is called in any context(s) between it and the context where `.def()` is called, the factory is inherited and invoked *in that subcontext*, leaving the origin context unaffected
-- If `.use()` is called in the subcontext *after* it has been called in a parent, the *result* of the factory call in the parent will be inherited, so long as every key that was `use()`d by the factory has the same value in the relevant subcontext.  (In effect, you can think of it as the result being memoized on the factory's dependencies.)  If any of the values is unequal, the factory is called again in the subcontext, rather than keeping the same result value.  This "smart sharing" rule ensures a self-consistent configuration is always seen by each subcontext.
+- If `.use()` is called in the subcontext *after* it has been called in a parent, the *result* of the factory call in the parent will be inherited, so long as every key that was `use()`d by the factory has the same value in the relevant subcontext.  (In effect, you can think of it as the result being memoized on the factory's dependencies.)  If any of the values are different in the subcontext, the factory is called again in the subcontext, rather than keeping the same result value.  This "smart sharing" rule ensures a self-consistent configuration is always seen by each subcontext.
 
 ### The Global Context
 
-XXX
+The global context is similar to a regular context object, in that when it is called, it performs a lookup of a key.  Unlike other contexts, however, it does this in the *currently-active* context, or throws an error if there is no currently-active context.  It also lacks a `use` property or method (and thus does not implement the `Useful` or `Context` interfaces, as it's not really suitable for use outside of constructors and factories).
+
+The global context also has two extra properties:
 
 #### `use.this`
 
-The `.this` property of the global context is an accessor for the "current active" context: the context that is currently running a factory to create a service or compute a configuration value.  If no context is currently active, an error is thrown.
+The `.this` property of the global context is an accessor for the "currently active" context: the context that is currently running a factory to create a service or compute a configuration value.  If no context is currently active, an error is thrown.
 
-The global `use(key)` function is actually shorthand for `use.this(key)`: that is, it looks up the key in the currently active context, or throws an error if there isn't one.
+The global `use(key)` function is actually shorthand for `use.this(key)`.  (That is, it looks up the key in the currently active context, or throws an error if there isn't one.)
 
 #### `use.me`
 
@@ -283,8 +294,30 @@ A symbol that can be used to define a static method that will be used in place o
 
 ### Interfaces
 
-This is just an overview of the interfaces `use-this` provides (and uses); for full API documentation see the [use-this.d.ts](mjs/use-this.d.ts) file.)
+(Note: this is just an overview of the primary interfaces `use-this` provides and uses, that you'd most likely want to use or implement in your own code.  If you want to see the full typings, see the [use-this.d.ts](mjs/use-this.d.ts) file.)
 
 #### `Types`
 
-An interface whose sole purpose is to support type inference and checking on string keys passed to the other API functions.  By declaring appropriately-named members of this interface with a relevant type, TypeScript will be able to infer the types returned by `.use()` and `.fork()` (or required by `.set()` and `.def()`).
+An interface whose sole purpose is to support type inference and checking on string keys passed to the other API functions.  By declaring appropriately-named members of this interface with a relevant type, TypeScript will be able to infer the types returned by `.use()` and `.fork()` (or required by `.set()` and `.def()`), e.g.:
+
+```typescript
+declare module "use-this" {
+    interface Types {
+        "some-key": number
+    }
+}
+```
+
+The above declaration ensures that `.set("some-key")` will expect a `number` value, and `.def("some-key")` will expect a `Factory<number>` throughout your code.
+
+#### `Useful`
+
+The `Useful` interface is implemented by any object with a `.use` property that's a `Context`.  It's useful (no pun intended) for making it easy to implement APIs that accept either a `Context`, or an object that *owns* a context.  If all the API needs is to look keys up, it can simply call `.use()` on the `Useful` object, and if it needs other context methods it can simply do `ctx = aUsefulObject.use` to obtain a `Context`.
+
+#### `Factory<T>`
+
+A factory for type T is a function that takes `(ctx: Context, key: any)` as arguments and returns `T`.  Context
+
+#### `Recipe<T>`
+
+A "recipe" is an object with a `[use.me](ctx: Context, key: any): T` method (or class with such a *static* method).  When a Recipe is looked up as a key and no value or factory is found in a context or its parents, the method is called with the target context and key, and the return value is used as the result.
