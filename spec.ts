@@ -90,7 +90,7 @@ describe("Context", () => {
 
         it("doesn't affect already-read values in forked contexts", () => {
             const bottom = use.fork(), middle = bottom.fork(), top = middle.fork();
-            bottom.set(aNumber, 42).def(something, use => use(aNumber)*2 );
+            bottom.set(aNumber, 42).def(something, () => use(aNumber)*2 );
             assert.equal(bottom.use(something), 84);
             assert.equal(top.use(something), 84);
             middle.def(something, use => 99);
@@ -102,10 +102,10 @@ describe("Context", () => {
 
     describe(".use()", () => {
         it("throws an error for a cyclical factory", () => {
-            const ctx = use.fork().def(aNumber, use => use(aNumber));
+            const ctx = use.fork().def(aNumber, () => use(aNumber));
             assert.throws(
                 () => ctx.use(aNumber),
-                /^Error: Factory use => use\(aNumber\) didn't resolve Symbol\(aNumber\)$/
+                /^Error: Factory \(\) => .*use.*\(aNumber\) didn't resolve Symbol\(aNumber\)$/
             );
         });
 
@@ -142,8 +142,8 @@ describe("Context", () => {
             describe("runs parent factory in child ctx ", () => {
                 it("if unused in parent + not overridden)", () => {
                     const ctx = use.fork();
-                    ctx.def(aNumber, use => {
-                        return use === ctx ? 555 : 444;
+                    ctx.def(aNumber, () => {
+                        return use.this === ctx ? 555 : 444;
                     });
                     assert.equal(ctx.fork().use(aNumber), 444);
                     assert.equal(ctx.use(aNumber), 555);
@@ -178,16 +178,16 @@ describe("Context", () => {
             it("invokes [use.me] method, even if a class", () => {
                 const ctx = use.fork();
                 class X {
-                    static [use.me](use: Context){
+                    static [use.me](){
                         assert.equal(this, X);
-                        assert.equal(use, ctx);
+                        assert.equal(use.this, ctx);
                         return "X";
                     }
                 }
                 const Y: Recipe<string> = {
-                    [use.me](use) {
+                    [use.me]() {
                         assert.equal(this, Y);
-                        assert.equal(use, ctx);
+                        assert.equal(use.this, ctx);
                         return "Y";
                     }
                 }

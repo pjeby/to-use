@@ -5,7 +5,7 @@ type Key = TypedKey | UntypedKey
 type TypedKey = keyof Types | Constructor<any> | Recipe<any>
 type UntypedKey = Function | object
 type Constructor<T> = (new (...args: any[]) => T) | (abstract new (...args: any[]) => T);
-type Factory<T> = (ctx: Context, key: Key) => T;
+export type Factory<T> = (key: Key) => T;
 
 type Provides<K> =
     K extends Constructor<infer T> ? T :
@@ -195,7 +195,7 @@ export const use = <GlobalContext> (function () {
         function exec(fn: Factory<any>, key?: Key, deps?: Key[]) {
             const oldCtx = ctx, oldDeps = used;
             try {
-                ctx = me; used = deps; return fn(me, key);
+                ctx = me; used = deps; return fn(key);
             } finally {
                 ctx = oldCtx; used = oldDeps;
             }
@@ -215,8 +215,8 @@ export const use = <GlobalContext> (function () {
     }
 
     /** Default lookup: handles [use.me]() and creating service instances */
-    function defaultLookup<K extends Key>(ctx: Context, key: K): Provides<K> {
-        if (typeof key[useMe] === "function") return (key as Recipe<Provides<K>>)[useMe](ctx, key);
+    function defaultLookup<K extends Key>(key: K): Provides<K> {
+        if (typeof key[useMe] === "function") return (key as Recipe<Provides<K>>)[useMe](key);
         if (isClass<Provides<K>>(key)) return new key();
         throw new ReferenceError(`No config for ${String(key)}`);
     }

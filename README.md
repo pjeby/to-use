@@ -125,7 +125,7 @@ Then we could use another feature of `use-this` (global defaults) to set up an e
 
 ```typescript
 // Register a factory in the global context
-use.def(AnotherService, use => new AnotherService(use(MyService)));
+use.def(AnotherService, () => new AnotherService(use(MyService)));
 ```
 
 This way, we get the best of both worlds: easy integration with existing classes, and easy-to-write new ones.
@@ -142,7 +142,7 @@ export const
     maxWorkers = Symbol()
 ;
 use .set(numWorkers, 3)  // Register default value in the global context
-    .def(maxWorkers, use => use(numWorkers) * 2); // (.set and .def calls are chainable)
+    .def(maxWorkers, () => use(numWorkers) * 2); // (.set and .def calls are chainable)
 
 // TypeScript support: as long as you do this somewhere in your project for
 // each of your keys, TypeScript will see the right types for your
@@ -250,7 +250,7 @@ Context objects are callables that look up a key and return a value, following t
 - Every call with the same key to the same context returns the exact same result or throws the same error instance
 - After the first lookup of a key in a context, no calls to `.set()` or `.def()` can change the result of future calls, no matter what context or key they're called on.  (And `.set()` or `.def()` on the same context will produce an error.)
 - If no value or factory is defined in the target context, the nearest parent (searching upward in the context tree) with a value or factory is used to generate the return value
-    - If the found value was created by a factory, the arguments used by that factory are **looked up in the target context** to see if they're identical: if not, the factory is called instead of inheriting its result.  (Note that this means those other keys will now be resolved -- and thus unchangeable -- as a side effect.)
+  - If the found value was created by a factory, the arguments used by that factory are **looked up in the target context** to see if they're identical: if not, the factory is called instead of inheriting its result.  (Note that this means those other keys will now be resolved -- and thus unchangeable -- as a side effect.)
 
 In addition to being callable, Contexts have the following methods:
 
@@ -266,9 +266,9 @@ Create a new subcontext and return it, or if `key` is given, return the result o
 
 `.set(key, value)` sets the value the key will have in the context, unless `.use(key)` has already been called for the context (in which case an error will occur).  Forked sub-contexts of the context will inherit the new value, unless `.set()`, `.def()`, or `.use()` have already been called for that key in that context or an intermediate context between it and the context where `.set()` was called.
 
-#### `.def(key, factory: (ctx, key) => result)`
+#### `.def(key, factory: (key) => result)`
 
-`.def(key, factory)` assigns a factory for computing the value of `key` in the context, unless `.use(key)` has already been called for the context (in which case an error will occur).  Upon `.use()` of the key, the factory will be called with two arguments: the context it's being looked up in, and the key.  It should return a value of the appropriate type for the given key.
+`.def(key, factory)` assigns a factory for computing the value of `key` in the context, unless `.use(key)` has already been called for the context (in which case an error will occur).  Upon `.use()` of the key, the factory will be called with the key being looked up.  It should return a value of the appropriate type for the given key.
 
 Forked sub-contexts will inherit either the factory or its result, depending on the circumstances:
 
@@ -316,8 +316,8 @@ The `Useful` interface is implemented by any object with a `.use` property that'
 
 #### `Factory<T>`
 
-A factory for type T is a function that takes `(ctx: Context, key: any)` as arguments and returns `T`.  Context
+A factory for type T is a function that takes a key as its argument and returns a result of type T.  TypeScript will check that your factory's return value matches the type of the key you `.def()` it on.
 
 #### `Recipe<T>`
 
-A "recipe" is an object with a `[use.me](ctx: Context, key: any): T` method (or class with such a *static* method).  When a Recipe is looked up as a key and no value or factory is found in a context or its parents, the method is called with the target context and key, and the return value is used as the result.
+A "recipe" is an object with a `[use.me](key): T` method (or class with such a *static* method).  When a Recipe is looked up as a key and no value or factory is found in a context or its parents, the method is called with the key, and the return value is used as the result.

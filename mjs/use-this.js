@@ -90,7 +90,7 @@ export const use = (function () {
             try {
                 ctx = me;
                 used = deps;
-                return fn(me, key);
+                return fn(key);
             }
             finally {
                 ctx = oldCtx;
@@ -112,9 +112,9 @@ export const use = (function () {
         }
     }
     /** Default lookup: handles [use.me]() and creating service instances */
-    function defaultLookup(ctx, key) {
+    function defaultLookup(key) {
         if (typeof key[useMe] === "function")
-            return key[useMe](ctx, key);
+            return key[useMe](key);
         if (isClass(key))
             return new key();
         throw new ReferenceError(`No config for ${String(key)}`);
