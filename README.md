@@ -1,11 +1,11 @@
-## `use-this`: A Tiny, Read-Consistent, Type-Safe DI Container
+## `to-use`: A Tiny, Read-Consistent, Type-Safe DI Container
 
-`use-this` is a tiny library with a huge goal: to make building configurable systems from small, overrideable components just as easy -- or *easier*! -- than hard-wiring them.
+`to-use` is a tiny library with a huge goal: to make building configurable systems from small, overrideable components just as easy -- or *easier*! -- than hard-wiring them.
 
-In other words, it's not just trying to be easier to use than literally *every other DI container*, it's also trying to be easier to use than *not* using one to begin with.  Defining dependencies can be as easy as this:
+In other words, it's not just trying to be easier to use than literally *every other DI container*, it's also trying to be easier `to-use` than *not* using one to begin with.  Defining dependencies can be as easy as this:
 
 ```typescript
-import { use } from "use-this";
+import { use } from "to-use";
 
 class HelloService {
     greet() { console.log("'sup?"); }
@@ -21,9 +21,9 @@ class AnotherService {
 use.fork(AnotherService).doAthing()
 ```
 
-In other words you can `use-this` *without typing any more characters* than you would to `new HelloService()`, and without breaking your IDE or TypeScript's type inference and type checking.  It doesn't require you to add parameters everywhere, but still avoids shared global state, and even supports scoped services and other advanced DI scenarios.
+In other words, it takes *the same or fewer characters* `to-use` this than you would to `new HelloService()`, and it doesn't break your IDE or TypeScript's type inference and type checking.  It doesn't require you to add parameters everywhere, but still avoids shared global state, and even supports scoped services and other advanced DI scenarios.
 
-So, even if it's a small project, you probably can (and maybe should!) `use-this` as your next project's configuration system or DI framework.  It:
+So, even if it's a small project, you probably can (and maybe should!) choose `to-use` this as your next project's configuration system or DI framework.  It:
 
 - Easily integrates with both new and legacy/third-party components
 - Doesn't require adding extra arguments everywhere to pass context around
@@ -35,13 +35,13 @@ So, even if it's a small project, you probably can (and maybe should!) `use-this
 - Has a tiny API surface (1 export with 2 properties and 4 methods)
 - Is ultra-light (<1k min+gzip, no dependencies)
 
-But you should not `use-this` if:
+But you should not choose `to-use` this if:
 
 - You need your code to run in an environment older than ES2016 (specifically, you lack a real ES6 runtime environment with `Symbol.for` and `Map`)
 - You want something that handles loading or parsing configuration (e.g. from files or CLI), not just injection
 - You don't want to use an early release whose API *might* change a bit in the future.
 
-Either way, keep reading if you'd like to learn more about *how* to `use-this`.  (Or if you just enjoy JavaScript puns involving "use" and `this`!)
+Either way, keep reading if you'd like to learn more about *how* `to-use` this.  (Or if you just enjoy JavaScript puns involving "use" and `this`!)
 
 #### Contents
 
@@ -49,7 +49,7 @@ Either way, keep reading if you'd like to learn more about *how* to `use-this`. 
 
 - [Developer's Guide](#developers-guide)
   * [Why Inject Dependencies?](#why-inject-dependencies)
-  * [Why `use-this`?](#why-use-this)
+  * [Why `to-use`?](#why-to-use)
   * [Configuring Factories and Values](#configuring-factories-and-values)
     + [`[use.me]` methods](#useme-methods)
     + [Value Types and Default Values](#value-types-and-default-values)
@@ -78,7 +78,7 @@ Either way, keep reading if you'd like to learn more about *how* to `use-this`. 
 
 ### Why Inject Dependencies?
 
-(If you're already familiar with dependency injection and were just shoppping for a good implementation, you can skip this bit about why DI is good, and get right on to the next section about why `use-this` is even better.)
+(If you're already familiar with dependency injection and were just shoppping for a good implementation, you can skip this bit about why DI is good, and get right on to the next section about why it's even better `to-use` this.)
 
 When you're building software, it's often a good idea to do it by combining smaller, reusable pieces.  But when you do that, each piece needs to know how to get or make the *other* pieces it needs to do its job.
 
@@ -100,17 +100,17 @@ But conceptually, most DI containers act like a kind of map or dictionary, with 
 
 Unfortunately, while most DI containers can solve the original problem, they often add new troubles of their own.  In dynamic languages like JavaScript, using a DI container often adds overhead like needing to come up with keys or register default factories for every class you use.  Some DI container implementations introduce global state and interfere with testing, or aren't compatible with minified code or TypeScript, or require you to add lots of explicit type declaratons.
 
-These are the problems that `use-this` is meant to solve, so you can build robust systems from tiny pieces *without* lots of invasive changes to the pieces themselves, and less work than most DI containers require.
+These are the problems that `to-use` is meant to solve, so you can build robust systems from tiny pieces *without* lots of invasive changes to the pieces themselves, and less work than most DI containers require.
 
-### Why `use-this`?
+### Why choose `to-use` this?
 
-`use-this` is a DI framework built around the idea of *contexts*.  As with other DI frameworks, a context is a bit like a smart `Map`, with the ability to define values or factories for turning "I need X" requests into values or services that are then cached for sharing.  These contexts can inherit from each other, allowing the services in them to either have their own instances of specific dependencies, or share the ones being used in a parent context.
+`to-use` is a DI framework built around the idea of *contexts*.  As with other DI frameworks, a context is a bit like a smart `Map`, with the ability to define values or factories for turning "I need X" requests into values or services that are then cached for sharing.  These contexts can inherit from each other, allowing the services in them to either have their own instances of specific dependencies, or share the ones being used in a parent context.
 
-`use-this` contexts, however, also have a few key differences in how they work, that make them a lot easier to integrate with your project than the average DI framework for JavaScript and TypeScript.
+`to-use` contexts, however, also have a few key differences in how they work, that make them a lot easier to integrate with your project than the average DI framework for JavaScript and TypeScript.
 
 First, **enforced consistency** via lazy immutability and "smart sharing".  Lazy immutability means values stored in contexts can be changed at any time, right up until they're actually used.  This allows considerable flexibility in loading and overriding configuration (e.g. for testing), while still making it impossible for different lookups of the same key in the same context to return different results (thereby preventing race conditions).  It also makes it easier to "scope" services (decide which ones to share with which contexts), as only the services actually *used* by a parent context will be shared with their nested contexts -- and even then, smart sharing means services are only shared if all their construction-time dependencies (services and configuration settings) are identical in the nested context.
 
-Second, **default factories for classes** means you can use service classes themselves as configuration keys, literally using a class `X` to mean, "I need an X".  If the class's constructor can work without arguments, you don't need to define an explicit factory for it: `use-this` will simply create an instance of that class when needed.
+Second, **default factories for classes** means you can use service classes themselves as configuration keys, literally using a class `X` to mean, "I need an X".  If the class's constructor can work without arguments, you don't need to define an explicit factory for it: `to-use` will simply create an instance of that class when needed.
 
 This means that you don't have to go to the trouble of defining string keys for every kind of service in your app (especially since the majority of the time you'll be using default implementations), nor do you have to explicitly register factories for every kind of thing you might want to `use()`.  In addition, it powers type inference for TypeScript and your IDE, so you don't need to declare as many explicit types, keeping your code clean and free of framework-filler.
 
@@ -119,7 +119,7 @@ And finally, **ambient context** means that, while factories are running, there 
 When these features are combined with type inference and a fluent interface, the result is a DI container that doesn't take over your service classes, as can be seen below:
 
 ```typescript
-import { use } from "use-this";
+import { use } from "to-use";
 
 class MyService {
     doSomething() {}
@@ -150,7 +150,7 @@ class AnotherService {
 }
 ```
 
-Then we could use another feature of `use-this` (global defaults) to set up an explicit default factory:
+Then we could use another feature of `to-use` (global defaults) to set up an explicit default factory:
 
 ```typescript
 // Register a factory in the global context
@@ -202,7 +202,7 @@ use .set(numWorkers, 3)  // Register default value in the global context
 // simplest to put them in the same module that defines the constants and
 // default values or factories.
 //
-declare module "use-this" {
+declare module "to-use" {
     interface Types {
         // Define the types of your string or symbol keys here
         [numWorkers]: number;
@@ -211,7 +211,7 @@ declare module "use-this" {
 }
 ```
 
-If you're using Javascript, declaring your key types is optional.  But if you're using TypeScript, it's required, as otherwise any string/symbol keys passed to `use-this` will generate type errors.  (Having the typings also lets you use hinting and autocompletion in IDEs like VSCode.)
+If you're using Javascript, declaring your key types is optional.  But if you're using TypeScript, it's required, as otherwise any string/symbol keys passed to `to-use` will generate type errors.  (Having the typings also lets you use hinting and autocompletion in IDEs like VSCode.)
 
 The `.set()` method of contexts registers a value or service instance to be used in that context, and any contexts inheriting from it.  (The global `use.set()` registers it in the global default context, which is inherited by all other contexts.)
 
@@ -221,12 +221,12 @@ Please note that you should only globally `.set()` **immutable** values (numbers
 
 While the most commonly-used keys are classes, strings, or symbols, there are also times when making keys out of other objects is helpful, particularly if the objects have some other functionality involved.
 
-`use-this` actually accepts any object or function as a key, and if that object or function has a `[use.this]` method, TypeScript will use that method's return type to figure out what sort of values the key should be `.set()` with, and what factories passed to `.def()` should return.
+`to-use` actually accepts any object or function as a key, and if that object or function has a `[use.this]` method, TypeScript will use that method's return type to figure out what sort of values the key should be `.set()` with, and what factories passed to `.def()` should return.
 
-Such objects are called "recipes" in `use-this` parlance, as they are not just a key to look something up, but also define a recipe for obtaining its default value.  The strict type is `Recipe<T>`, meaning a recipe returning a value of type T.  So if you do something like this:
+Such objects are called "recipes" in `to-use` parlance, as they are not just a key to look something up, but also define a recipe for obtaining its default value.  The strict type is `Recipe<T>`, meaning a recipe returning a value of type T.  So if you do something like this:
 
 ```typescript
-import {Recipe} from "use-this";
+import {Recipe} from "to-use";
 
 class EnvVarDefault<T> implements Recipe<T> {
     constructor(
@@ -253,7 +253,7 @@ As you can see, recipes offer quite a bit of flexibility.  You could define a re
 
 So we've seen how to define service dependencies and default values and factories, but how do we actually start *using* an instance of `AnotherService`?  Do we just `use(AnotherService)` in our initialization code?
 
-Almost!  The `use` export of `use-this` is actually a special context: the *global defaults* context.  It accepts `.set()` and `.def()` to create defaults, but only lets us look things up when it's called *during the synchronous execution* of a factory function or service constructor.  That means we can't just call it directly in our initialization code, or we'll get an error.  (This restriction ensures there's never any truly global *state* in our apps, which helps make them more testable and less fragile.)
+Almost!  The `use` export of `to-use` is actually a special context: the *global defaults* context.  It accepts `.set()` and `.def()` to create defaults, but only lets us look things up when it's called *during the synchronous execution* of a factory function or service constructor.  That means we can't just call it directly in our initialization code, or we'll get an error.  (This restriction ensures there's never any truly global *state* in our apps, which helps make them more testable and less fragile.)
 
 So, since the global context is write-only, we have to create a new, read-write context using the `.fork()` method:
 
@@ -319,11 +319,11 @@ Anyway, all of this means that in our example above, any services that `App` or 
 
 #### Managing Scoped Components
 
-For most simple cases, the default behavior of `use-this` is sufficient to handle scoping correctly.  After all, in simple apps, you're likely to have only one main "context" anyway, likely tied to some kind of `App` object, and even if you do have some child contexts for specific tasks or UI elements, it's likely they're either using services already present in the app's context, or they're using services the app itself does not.
+For most simple cases, the default behavior of `to-use` is sufficient to handle scoping correctly.  After all, in simple apps, you're likely to have only one main "context" anyway, likely tied to some kind of `App` object, and even if you do have some child contexts for specific tasks or UI elements, it's likely they're either using services already present in the app's context, or they're using services the app itself does not.
 
 But as apps get more complex, this may change.  For example, you might want to ensure that all the tasks share some task-related service.  In the simple case, you could just explicitly create an instance of the service in the app context so it'll be shared by default.  But this implies that you *know* which services the child contexts will need, and as an app is built from more and more components, that's precisely the sort of thing you don't want to have to know in advance: the sort of problem a DI container is supposed to help you solve, in fact.
 
-So with `use-this`, we solve that problem by explicitly scoping specific keys, as part of their factory definition.
+So with `to-use`, we solve that problem by explicitly scoping specific keys, as part of their factory definition.
 
 So for example, let's say we are making an app that creates subcontexts for different Tasks it performs, and has a TaskScheduler service they should share.  But we don't want to add explicit code to our App to initialize the scheduler.  So we need a way for Tasks to get a TaskScheduler *from the app context*.  To do that, we might write something like this:
 
@@ -345,10 +345,10 @@ class TaskScheduler {
 }
 ```
 
-Adding a static `[use.me]` method to a class makes it into what `use-this` calls a "recipe": that is, a key that provides its own default factory, to be used if no other factory is registered or value set for that key.  We can even generalize the idea of a scoped factory, making it more fully generic and "useful":
+Adding a static `[use.me]` method to a class makes it into what `to-use` calls a "recipe": that is, a key that provides its own default factory, to be used if no other factory is registered or value set for that key.  We can even generalize the idea of a scoped factory, making it more fully generic and "useful":
 
 ```typescript
-import {Useful, Factory} from "use-this";
+import {Useful, Factory} from "to-use";
 
 function scoped(
     scope: new () => Useful,             // a key whose type includes {use: Context}
@@ -382,7 +382,7 @@ So if we wanted to do this in a generic task scheduling library, we might instea
 ```typescript
 export const schedulerScope = Symbol("The object whose context the scheduler should live in");
 
-declare module "use-this" {
+declare module "to-use" {
     [schedulerScope]: Useful
 }
 
@@ -397,11 +397,11 @@ class TaskScheduler extends SchedulerScoped {
 
 Then, any application using this library would need to `.def(schedulerScope, () => use(App))` so the scheduler library knows what context the scheduler lives in.
 
-Of course, not every application *needs* all this sophistication or will ever grow to need it, which is why `use-this` doesn't build all of this scoping policy in, and instead leaves you room to add it in when and if you ever need it.
+Of course, not every application *needs* all this sophistication or will ever grow to need it, which is why `to-use` doesn't build all of this scoping policy in, and instead leaves you room to add it in when and if you ever need it.
 
-That is, `use-this` follows the STASCTAP principle: Simple Things Are Simple, Complex Things Are Possible.  This makes it easy to get started with, while still allowing high-end use cases like metaprogamming your configuration file formats, or advanced dynamic scoping.
+That is, `to-use` follows the STASCTAP principle: Simple Things Are Simple, Complex Things Are Possible.  This makes it easy to get started with, while still allowing high-end use cases like metaprogamming your configuration file formats, or advanced dynamic scoping.
 
-So that gentle learning curve is just one more thing we hope will encourage you to `use-this` in your projects.  Enjoy!
+So that gentle learning curve is just one more thing we hope will encourage you `to-use` this in your projects.  Enjoy!
 
 
 
@@ -459,14 +459,14 @@ A symbol that can be used to define a static method that will be used in place o
 
 ### Interfaces
 
-(Note: this is just an overview of the primary interfaces `use-this` provides and uses, that you'd most likely want to use or implement in your own code.  If you want to see the full typings, see the [use-this.d.ts](mjs/use-this.d.ts) file.)
+(Note: this is just an overview of the primary interfaces `to-use` provides and uses, that you'd most likely want to use or implement in your own code.  If you want to see the full typings, see the [to-use.d.ts](mjs/to-use.d.ts) file.)
 
 #### `Types`
 
 An interface whose sole purpose is to support type inference and checking on string keys passed to the other API functions.  By declaring appropriately-named members of this interface with a relevant type, TypeScript will be able to infer the types returned by `.use()` and `.fork()` (or required by `.set()` and `.def()`), e.g.:
 
 ```typescript
-declare module "use-this" {
+declare module "to-use" {
     interface Types {
         "some-key": number
     }

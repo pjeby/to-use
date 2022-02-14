@@ -1,6 +1,6 @@
 {
-  "name": "use-this",
-  "version": "0.0.1",
+  "name": "to-use",
+  "version": "0.1.0",
   "description": "An ultralight, typesafe, read-consistent DI container that doesn't need decorators or reflection",
   "keywords": [
     "ioc",
@@ -9,16 +9,16 @@
     "container",
     "service container"
   ],
-  "repository": "https://github.com/pjeby/use-this.git",
+  "repository": "https://github.com/pjeby/to-use.git",
   "author": "PJ Eby",
   "license": "ISC",
   "files": [
-    "cjs/use-this.js",
-    "mjs/use-this.*s"
+    "cjs/to-use.js",
+    "mjs/to-use.*s"
   ],
-  "main": "cjs/use-this.js",
-  "module": "mjs/use-this.js",
-  "types": "mjs/use-this.d.ts",
+  "main": "cjs/to-use.js",
+  "module": "mjs/to-use.js",
+  "types": "mjs/to-use.d.ts",
   "scripts": {
     "build": "tsc --build",
     "watch": "mocha --watch",
@@ -27,7 +27,7 @@
   "mocha": {
     "spec": "spec.ts",
     "watch-files": [
-      "use-this.ts",
+      "to-use.ts",
       "spec.ts",
       "README.md"
     ],

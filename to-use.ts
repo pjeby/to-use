@@ -85,7 +85,7 @@ export interface Context extends Configurable, Useful {}
 }
 
 
-const useMe = Symbol.for("v1.use-this.peak-dev.org");
+const useMe = Symbol.for("v1.to-use.peak-dev.org");
 
 /** The "current" context, aka `use.this` */
 let ctx: Context;

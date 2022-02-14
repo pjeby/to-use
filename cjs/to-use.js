@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.use = void 0;
-const useMe = Symbol.for("v1.use-this.peak-dev.org");
+const useMe = Symbol.for("v1.to-use.peak-dev.org");
 /** The "current" context, aka `use.this` */
 let ctx;
 /** The active dependency log: tracks keys used during factory execution  */

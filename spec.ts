@@ -1,7 +1,7 @@
-import {Recipe, Context, use} from "./use-this";
+import {Recipe, Context, use} from "./to-use";
 import {strict as assert} from 'assert';
 
-declare module "./use-this" {
+declare module "./to-use" {
     interface Types {
         [something]: any
         [aNumber]: number
@@ -32,7 +32,7 @@ describe("GlobalContext", ()=> {
 
     describe(".me", () => {
         it("is an interoperable symbol", () => {
-            assert.equal(use.me, Symbol.for("v1.use-this.peak-dev.org"))
+            assert.equal(use.me, Symbol.for("v1.to-use.peak-dev.org"))
         });
     });
 

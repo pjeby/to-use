@@ -6,6 +6,6 @@
         "newLine": "lf",
         "lib": ["es2015"]
     },
-    "include": [ "use-this.ts" ],
+    "include": [ "to-use.ts" ],
     "references": [{"path": "./tsconfig.esm.json"}]
 }
