@@ -43,7 +43,36 @@ But you should not `use-this` if:
 
 Either way, keep reading if you'd like to learn more about *how* to `use-this`.  (Or if you just enjoy JavaScript puns involving "use" and `this`!)
 
+#### Contents
 
+<!-- toc -->
+
+- [Developer's Guide](#developers-guide)
+  * [Why Inject Dependencies?](#why-inject-dependencies)
+  * [Why `use-this`?](#why-use-this)
+  * [Configuring Factories and Values](#configuring-factories-and-values)
+    + [`[use.me]` methods](#useme-methods)
+    + [Value Types and Default Values](#value-types-and-default-values)
+    + [Using Other Objects As Keys](#using-other-objects-as-keys)
+  * [Working With Contexts](#working-with-contexts)
+    + [Inheritance, Sharing, and the Active Context](#inheritance-sharing-and-the-active-context)
+    + [Managing Scoped Components](#managing-scoped-components)
+- [API Reference](#api-reference)
+  * [Context Objects](#context-objects)
+    + [`.use(key)`](#usekey)
+    + [`.fork(key?)`](#forkkey)
+    + [`.set(key, value)`](#setkey-value)
+    + [`.def(key, factory: (key) => result)`](#defkey-factory-key--result)
+  * [The Global Context](#the-global-context)
+    + [`use.this`](#usethis)
+    + [`use.me`](#useme)
+  * [Interfaces](#interfaces)
+    + [`Types`](#types)
+    + [`Useful`](#useful)
+    + [`Factory`](#factory)
+    + [`Recipe`](#recipe)
+
+<!-- tocstop -->
 
 ## Developer's Guide
 
@@ -130,6 +159,29 @@ use.def(AnotherService, () => new AnotherService(use(MyService)));
 
 This way, we get the best of both worlds: easy integration with existing classes, and easy-to-write new ones.
 
+#### `[use.me]` methods
+
+Registering a global default factory isn't the only way to define a factory: key objects themselves can provide a factory as a `[use.me]` method.  In the case of keys used as classes, that means you can define a static method, e.g.:
+
+```typescript
+class AnotherService {
+    constructor(public myService: MyService) {}
+
+    [use.me]() { return new this(use(MyService)); }
+}
+```
+
+Or patch an existing class to add it:
+
+```typescript
+AnotherService[use.me] = (key) => new key(use(MyService))
+```
+
+(The difference between this approach and registering default factories, is that a static `[use.me]` method gets inherited by subclasses, while a default factory only applies to a single exact key.)
+
+
+#### Value Types and Default Values
+
 In addition to services keyed by class, you can also define typed configuration properties, keyed by strings or symbols:
 
 ```typescript
@@ -165,6 +217,38 @@ The `.set()` method of contexts registers a value or service instance to be used
 
 Please note that you should only globally `.set()` **immutable** values (numbers, strings, read-only record types, etc.), unless you explicitly intend them to be global shared state and have taken into consideration the potential problems of doing so.  For objects that might be changed, registering a factory is usually a better choice when setting up global defaults.  (Among other things, it prevents tests that modify the object from affecting later tests!)
 
+#### Using Other Objects As Keys
+
+While the most commonly-used keys are classes, strings, or symbols, there are also times when making keys out of other objects is helpful, particularly if the objects have some other functionality involved.
+
+`use-this` actually accepts any object or function as a key, and if that object or function has a `[use.this]` method, TypeScript will use that method's return type to figure out what sort of values the key should be `.set()` with, and what factories passed to `.def()` should return.
+
+Such objects are called "recipes" in `use-this` parlance, as they are not just a key to look something up, but also define a recipe for obtaining its default value.  The strict type is `Recipe<T>`, meaning a recipe returning a value of type T.  So if you do something like this:
+
+```typescript
+import {Recipe} from "use-this";
+
+class EnvVarDefault<T> implements Recipe<T> {
+    constructor(
+        public name: string,
+        public dflt: string,
+        converter: (val: string) => T = (val) => val
+    ) {}
+
+    // Notice this is an *instance* method, as instances of this class are keys;
+    // this is different from using a static method, when the *class* is the key!
+    [use.me](): T {
+        return this.converter(process.env[this.name] ?? this.dflt);
+    }
+}
+
+export const startWorkers = new EnvVarDefault<number>("START_WORKERS", "4", parseInt);
+```
+
+Then Typescript will understand that `use(startWorkers)` is supposed to return a number, `.set(startWorkers)` should take a number, and so on.  And when you `use(startWorkers)` in a context with no other definition for that key, it will fall back to converting an environment variable.
+
+As you can see, recipes offer quite a bit of flexibility.  You could define a recipe class that describes not only environment variables, but also command line arguments and config file setting names, then register instances of that class with the respective parsers to generate your CLI or config file format, or perhaps documentation and command-line help.
+
 ### Working With Contexts
 
 So we've seen how to define service dependencies and default values and factories, but how do we actually start *using* an instance of `AnotherService`?  Do we just `use(AnotherService)` in our initialization code?
@@ -182,11 +266,11 @@ The `.fork()` method of a context does two things.  First, it creates a new, chi
 
 Each time the line of code above runs, it creates a *new* child context, and executes whatever factory is defined for `AnotherService` with that new context as the *ambient* or "current" context.  So when `use()` is called inside any of the constructors, initializers, or factories used to create our service instance, it will look things up in the new child context created by `fork()`, instead of the global defaults context.
 
-Thus, if we `fork()` five different `AnotherService` instances, each will have its own `MyService` instance as well, not to mention any other service(s) they use.)
+(Thus, if we `fork()` five different `AnotherService` instances, each will have its own `MyService` instance as well, not to mention any other service(s) they use.)
 
 But wait, what if we want to *share* `MyService` instances across those contexts?  After all, we might want to have a global `App` service that's shared between request-scoped services (in a server app) or window/pane-scoped services (in a client app).
 
-### Inheritance, Sharing, and the Active Context
+#### Inheritance, Sharing, and the Active Context
 
 Here's a sketch of a server-side app creating request-scoped services, using `use.this` and `this.use`:
 
@@ -209,15 +293,15 @@ class App {
     run() { /* ... */ }
 
     processRequest(user: User, data) {
-        this.use
-            .fork()                 // create a new context
-            .set(User, user)        // add some local info to it
-            .use(RequestService)    // get a service from the context
+        this.use                    // starting with App's context,
+            .fork()                 // create a new subcontext
+            .set(User, user)        // and add some local info to it,
+            .use(RequestService)    // then get a service from the context
             .POST(data);            // and call a method on it
     }
 }
 
-// Create an app in its own context and run it
+// Create an App in its own context and run it
 use.fork(App).run();
 ```
 
@@ -227,18 +311,99 @@ In the above example, the  `App` class saves `use.this` as `this.use`, so it can
 
 The way this inheritance works is that when we set up factories and values using `.def()` and `.set()`, we aren't really "setting" the values, we're just defining how to *get* them.  In this state, you could say that the values are "pending", like an unresolved promise.  But when we look them up with `use()`, they are then "resolved" to an actual value (or error).
 
-When we `fork()` a child context, any lookups that happen in it will look up either the pending definition or resolved value from the parent context (unless they're overridden by a definition in the child).  If it's a pending definition, the factory will be called with the *child* context active, creating a new instance in the child instead of sharing that service with the parent!  But if the parent context already `use()`d the definition, then it's a resolved value, and ends up shared by the child.
+When we `fork()` a child context, any lookups that happen in it will look up either the pending definition or resolved value from the parent context (unless they're overridden by a definition in the child).  If it's a pending definition, the factory will be called with the *child* context active, creating a new instance in the child instead of sharing that service with the parent!
 
-Thus, in our example above, any services that `App` or its dependencies used prior to a given `processRequest()` will be shared by the request context for every future request.  Any other services will be created fresh, on a per request basis.  This is a powerful tool for building applications from loosely-coupled, on-demand components.
+But if the parent context already `use()`d the definition, then it's a resolved value, and ends up shared by the child, unless it has any differences in its dependencies.  (For example, if we have a service whose factory `use()`s a database, and the database's connection info is looked up as well, then looking up the database or any service that uses it in a subcontext where the database connection info is different than the parent context will cause new, non-shared instances to be created.  This ensures that each context always sees a *self-consistent* configuration, rather than sharing a database with the wrong connection info!)
 
-### Managing Scoped Components
+Anyway, all of this means that in our example above, any services that `App` or its dependencies used prior to a given `processRequest()` will be shared by the request context for every future request, provided the request doesn't configure them differntly.  And any services that are configured differently from the `App` (or not used by it) will be created fresh, on a per request basis.  This is a powerful tool for building applications from loosely-coupled, on-demand components.
 
-XXX scope and owner, scoping keys
+#### Managing Scoped Components
 
-### Creating "Smart Key" objects
-### Error Handling
-### Creating a Component Framework
-### Managing Configuration Files
+For most simple cases, the default behavior of `use-this` is sufficient to handle scoping correctly.  After all, in simple apps, you're likely to have only one main "context" anyway, likely tied to some kind of `App` object, and even if you do have some child contexts for specific tasks or UI elements, it's likely they're either using services already present in the app's context, or they're using services the app itself does not.
+
+But as apps get more complex, this may change.  For example, you might want to ensure that all the tasks share some task-related service.  In the simple case, you could just explicitly create an instance of the service in the app context so it'll be shared by default.  But this implies that you *know* which services the child contexts will need, and as an app is built from more and more components, that's precisely the sort of thing you don't want to have to know in advance: the sort of problem a DI container is supposed to help you solve, in fact.
+
+So with `use-this`, we solve that problem by explicitly scoping specific keys, as part of their factory definition.
+
+So for example, let's say we are making an app that creates subcontexts for different Tasks it performs, and has a TaskScheduler service they should share.  But we don't want to add explicit code to our App to initialize the scheduler.  So we need a way for Tasks to get a TaskScheduler *from the app context*.  To do that, we might write something like this:
+
+```typescript
+use.def(TaskScheduler, () => {
+    const app = use(App);
+    return (use.this !== app.use) ? app.use(TaskScheduler) : new TaskScheduler();
+})
+```
+
+With this as our default factory, any lookup that occurs outside the app's context will be redirected to the app context, ensuring there is only one TaskScheduler for the app, shared by all task contexts.  We can even build it into TaskScheduler itself, like this:
+
+```typescript
+class TaskScheduler {
+    static [use.me]() {
+        const app = use(App);
+        return (use.this !== app.use) ? app.use(this) : new this();
+    }
+}
+```
+
+Adding a static `[use.me]` method to a class makes it into what `use-this` calls a "recipe": that is, a key that provides its own default factory, to be used if no other factory is registered or value set for that key.  We can even generalize the idea of a scoped factory, making it more fully generic and "useful":
+
+```typescript
+import {Useful, Factory} from "use-this";
+
+function scoped(
+    scope: new () => Useful,             // a key whose type includes {use: Context}
+    factory: Factory<T> = key => new key // default to creating an instance of the key
+): Factory<T> {
+    return function(key) {
+        const owner = use(scope);
+        return (use.this !== owner.use) ? owner.use(key) : factory.call(this, key);
+    }
+}
+
+class AppScoped {
+    static [use.me] = scoped(App)
+}
+
+class TaskScheduler extends AppScoped {
+    // ...
+}
+
+class AnotherService extends AppScoped {
+    // ... etc.
+}
+```
+
+Now any request for these `AppScoped` services will be directed to our app's context, and thus automatically shared across all subcontexts.
+
+Of course, this is not the only possible way to manage scoping.  And this particular case of using `App` directly as our scope key has the downside of tying this task scheduling library to a particular application class!
+
+So if we wanted to do this in a generic task scheduling library, we might instead define a `Symbol`, perhaps `schedulerScope` to pass to `scoped()`.  Perhaps like so:
+
+```typescript
+export const schedulerScope = Symbol("The object whose context the scheduler should live in");
+
+declare module "use-this" {
+    [schedulerScope]: Useful
+}
+
+class SchedulerScoped {
+    static [use.me] = scoped(schedulerScope)
+}
+
+class TaskScheduler extends SchedulerScoped {
+    //... etc.
+}
+```
+
+Then, any application using this library would need to `.def(schedulerScope, () => use(App))` so the scheduler library knows what context the scheduler lives in.
+
+Of course, not every application *needs* all this sophistication or will ever grow to need it, which is why `use-this` doesn't build all of this scoping policy in, and instead leaves you room to add it in when and if you ever need it.
+
+That is, `use-this` follows the STASCTAP principle: Simple Things Are Simple, Complex Things Are Possible.  This makes it easy to get started with, while still allowing high-end use cases like metaprogamming your configuration file formats, or advanced dynamic scoping.
+
+So that gentle learning curve is just one more thing we hope will encourage you to `use-this` in your projects.  Enjoy!
+
+
 
 
 ## API Reference
@@ -260,11 +425,11 @@ In addition to being callable, Contexts have the following methods:
 
 #### `.fork(key?)`
 
-Create a new subcontext and return it, or if `key` is given, return the result of looking `key` up in the subcontext.  The subcontext will inherit values and factories from its parent, but will not implicitly resolve anything in it.  (That is, you can continue changing things in a parent context even if they've been looked up in a child context.  It is only direct lookups that are required to be consistent.)
+Create a new subcontext and return it, or if `key` is given, return the result of looking `key` up in the subcontext.  The subcontext will inherit values and factories from its parent, but will not implicitly resolve anything in it.  (That is, you can continue changing things in a parent context even if they've been looked up in a child context: it's only direct lookups in a given context that have enforced consistency.)
 
 #### `.set(key, value)`
 
-`.set(key, value)` sets the value the key will have in the context, unless `.use(key)` has already been called for the context (in which case an error will occur).  Forked sub-contexts of the context will inherit the new value, unless `.set()`, `.def()`, or `.use()` have already been called for that key in that context or an intermediate context between it and the context where `.set()` was called.
+`.set(key, value)` sets the value the key will have in the context, unless `.use(key)` has already been called for the context (in which case an error will occur).  Forked sub-contexts of the context will inherit the new value, unless `.set()`, `.def()`, or `.use()` have already been called for that key in that context, or an intermediate subcontext between it and the context where `.set()` was called.
 
 #### `.def(key, factory: (key) => result)`
 
@@ -316,7 +481,7 @@ The `Useful` interface is implemented by any object with a `.use` property that'
 
 #### `Factory<T>`
 
-A factory for type T is a function that takes a key as its argument and returns a result of type T.  TypeScript will check that your factory's return value matches the type of the key you `.def()` it on.
+A factory for type T is a function that takes a key as its argument and returns a result of type T.  TypeScript will check that your factory's return value matches the expected type of the key you `.def()` it on.
 
 #### `Recipe<T>`
 
