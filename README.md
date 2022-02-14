@@ -49,7 +49,7 @@ Either way, keep reading if you'd like to learn more about *how* `to-use` this. 
 
 - [Developer's Guide](#developers-guide)
   * [Why Inject Dependencies?](#why-inject-dependencies)
-  * [Why `to-use`?](#why-to-use)
+  * [Why choose `to-use` this?](#why-choose-to-use-this)
   * [Configuring Factories and Values](#configuring-factories-and-values)
     + [`[use.me]` methods](#useme-methods)
     + [Value Types and Default Values](#value-types-and-default-values)
@@ -479,10 +479,10 @@ The above declaration ensures that `.set("some-key")` will expect a `number` val
 
 The `Useful` interface is implemented by any object with a `.use` property that's a `Context`.  It's useful (no pun intended) for making it easy to implement APIs that accept either a `Context`, or an object that *owns* a context.  If all the API needs is to look keys up, it can simply call `.use()` on the `Useful` object, and if it needs other context methods it can simply do `ctx = aUsefulObject.use` to obtain a `Context`.
 
-#### `Factory<T>`
+#### `Factory`
 
-A factory for type T is a function that takes a key as its argument and returns a result of type T.  TypeScript will check that your factory's return value matches the expected type of the key you `.def()` it on.
+A `Factory<T>` is a function that takes a key as its argument and returns a result of type T.  TypeScript will check that your factory's return value matches the expected type of the key you `.def()` it on.
 
-#### `Recipe<T>`
+#### `Recipe`
 
-A "recipe" is an object with a `[use.me](key): T` method (or class with such a *static* method).  When a Recipe is looked up as a key and no value or factory is found in a context or its parents, the method is called with the key, and the return value is used as the result.
+A `Recipe<T>`is an object with a `[use.me](key): T` method (or class with such a *static* method).  When a Recipe is looked up as a key and no value or factory is found in a context or its parents, the method is called with the key, and the return value is used as the result.
