@@ -6,7 +6,7 @@ declare type TypedKey = keyof Types | Constructor<any> | Recipe<any>;
 declare type UntypedKey = Function | object;
 declare type Constructor<T> = (new (...args: any[]) => T) | (abstract new (...args: any[]) => T);
 export declare type Factory<T> = (key: Key) => T;
-declare type Provides<K> = K extends Constructor<infer T> ? T : K extends Recipe<infer T> ? T : K extends keyof Types ? Types[K] : K extends UntypedKey ? unknown : never;
+declare type Provides<K> = K extends Recipe<infer T> ? T : K extends Constructor<infer T> ? T : K extends keyof Types ? Types[K] : K extends UntypedKey ? unknown : never;
 /**
  * A callable that looks up lazy-immutable cached values
  */

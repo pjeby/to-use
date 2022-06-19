@@ -8,8 +8,8 @@ type Constructor<T> = (new (...args: any[]) => T) | (abstract new (...args: any[
 export type Factory<T> = (key: Key) => T;
 
 type Provides<K> =
-    K extends Constructor<infer T> ? T :
     K extends Recipe<infer T> ? T :
+    K extends Constructor<infer T> ? T :
     K extends keyof Types ? Types[K] :
     K extends UntypedKey ? unknown :
     never
