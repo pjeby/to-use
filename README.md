@@ -21,7 +21,7 @@ class AnotherService {
 use.fork(AnotherService).doAthing()
 ```
 
-In other words, it takes *the same or fewer characters* `to-use` this than you would to `new HelloService()`, and it doesn't break your IDE or TypeScript's type inference and type checking.  It doesn't require you to add parameters everywhere, but still avoids shared global state, and even supports scoped services and other advanced DI scenarios.
+In other words, it takes *the same or fewer characters* `to-use` this than you would need for `new HelloService()`, and it doesn't break your IDE or TypeScript's type inference and type checking.  It doesn't require you to add parameters everywhere, but still avoids shared global state, and even supports scoped services and other advanced DI scenarios.
 
 So, even if it's a small project, you probably can (and maybe should!) choose `to-use` this as your next project's configuration system or DI framework.  It:
 
@@ -477,7 +477,7 @@ The above declaration ensures that `.set("some-key")` will expect a `number` val
 
 #### `Useful`
 
-The `Useful` interface is implemented by any object with a `.use` property that's a `Context`.  It's useful (no pun intended) for making it easy to implement APIs that accept either a `Context`, or an object that *owns* a context.  If all the API needs is to look keys up, it can simply call `.use()` on the `Useful` object, and if it needs other context methods it can simply do `ctx = aUsefulObject.use` to obtain a `Context`.
+The `Useful` interface is implemented by any object with a `.use` property that's a `Context`.  It exists to make it easy for APIs you write to accept either a `Context`, or an object that *owns* a context.  If all the API needs is to look keys up, it can simply call `.use()` on the `Useful` object, and if it needs other context methods it can simply grab the `Context` found at `usefulObject.use`.
 
 #### `Factory`
 
