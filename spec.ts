@@ -36,6 +36,12 @@ describe("GlobalContext", ()=> {
         });
     });
 
+    describe(".factory", () => {
+        it("is an interoperable symbol", () => {
+            assert.equal(use.factory, Symbol.for("v1.factory.to-use.peak-dev.org"))
+        });
+    });
+
     describe(".this", () => {
         it("accesses the active context during construction", () => {
             const ctx = use.fork();
@@ -194,6 +200,19 @@ describe("Context", () => {
                 assert.equal(ctx.use(X), "X");
                 assert.equal(ctx.use(Y), "Y");
             });
+
+            it("invokes [use.factory] method, if a class", () => {
+                const ctx = use.fork();
+                class X {
+                    [use.factory](){
+                        assert.equal(this, X.prototype);
+                        assert.equal(use.this, ctx);
+                        return "X";
+                    }
+                }
+                assert.equal(ctx.use(X), "X");
+            });
+
 
             it("throws ReferenceError otherwise", () => {
                 function Y() {};

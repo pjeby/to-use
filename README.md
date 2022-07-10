@@ -52,6 +52,7 @@ Either way, keep reading if you'd like to learn more about *how* `to-use` this. 
   * [Why choose `to-use` this?](#why-choose-to-use-this)
   * [Configuring Factories and Values](#configuring-factories-and-values)
     + [`[use.me]` methods](#useme-methods)
+    + [Parameterized Services and `[use.factory]`](#parameterized-services-and-usefactory)
     + [Value Types and Default Values](#value-types-and-default-values)
     + [Using Other Objects As Keys](#using-other-objects-as-keys)
   * [Working With Contexts](#working-with-contexts)
@@ -66,6 +67,7 @@ Either way, keep reading if you'd like to learn more about *how* `to-use` this. 
   * [The Global Context](#the-global-context)
     + [`use.this`](#usethis)
     + [`use.me`](#useme)
+    + [`use.factory`](#usefactory)
   * [Interfaces](#interfaces)
     + [`Types`](#types)
     + [`Useful`](#useful)
@@ -167,7 +169,7 @@ Registering a global default factory isn't the only way to define a factory: key
 class AnotherService {
     constructor(public myService: MyService) {}
 
-    [use.me]() { return new this(use(MyService)); }
+    static [use.me]() { return new this(use(MyService)); }
 }
 ```
 
@@ -177,8 +179,50 @@ Or patch an existing class to add it:
 AnotherService[use.me] = (key) => new key(use(MyService))
 ```
 
-(The difference between this approach and registering default factories, is that a static `[use.me]` method gets inherited by subclasses, while a default factory only applies to a single exact key.)
+The difference between this approach and registering default factories, is that a static `[use.me]` method gets inherited by subclasses, while a default factory only applies to a single exact key.  However, you'll still have to redefine the `[use.me]` method in each subclass, if you want Typescript to know it'll be getting an instance of *that* subclass, rather than an instance of the class the `[use.me]` method was inherited from.
 
+If you want to avoid that, or if you need to do something even more sophisticated with your default factories, you probably want to use a `[use.factory]` method instead, as we'll describe in the next section.
+
+#### Parameterized Services and `[use.factory]`
+
+Sometimes, instead of getting an instance of a class as a service, you instead want a service that operates on instances of that class.  For example, let's say we have various named objects, and we need registry services for them.  We can't just `use(Registry)` because this doesn't tell us (or Typescript) what kind of things are in the registry.  So instead, we might want to create a generic Registry service, and then declare factory methods on the classes we want to have registries for:
+
+```typescript
+class Registry<T> {
+    map = new Map<string, T>();
+
+    constructor(public factory: new () => T) {}
+
+    get(name: string) {
+        if (!this.map.has(name)) this.map.set(name, new this.factory());
+        return this.map.get(name);
+    }
+}
+
+class RegisteredThing {
+    [use.factory]() { return new Registry(this.constructor as new () => typeof this); }
+}
+```
+
+Now, if we `use(RegisteredThing)`, Typescript will know we're looking for a `Registry<RegisteredThing>`, and the same for any of its subclasses.  And we can access instances via registries like this:
+
+```typescript
+class Thing1 extends RegisteredThing {}
+class Thing2 extends RegisteredThing {}
+
+class AService {
+    bob = use(Thing1).get("bob"); // === Registry<Thing1>.get("bob")
+    joe = use(Thing2).get("joe"); // === Registry<Thing2>.get("joe")
+}
+```
+
+There are a few tricky Typescript details to pay attention to here if you're implementing something like this.
+
+First, we're not using a `static [use.me]()` method here, even though in principle we *could*.  Unfortunately, Typescript doesn't correctly handle the types of inherited static methods.  If we used a static method, then `use()` on a subclass of `RegisteredThing` would be seen by Typescript as providing a `RegisteredThing`, rather than a specific subclass.
+
+Second, in order to access the actual class involved, we have to use `this.constructor` and cast it to the correct constructor type, because Typescript assumes `this.constructor` is a Function with no additional type information.
+
+Last, but not least, even though the `[use.factory]()` method receives a `this` parameter, it's important that you not do *anything* with it besides accessing its `.constructor`, because it's not a real instance of the class, it's actually the class's prototype.
 
 #### Value Types and Default Values
 
@@ -456,6 +500,12 @@ The global `use(key)` function is actually shorthand for `use.this(key)`.  (That
 #### `use.me`
 
 A symbol that can be used to define a static method that will be used in place of a class' constructor to create a service.  This can be helpful when your service constructor needs non-default arguments, or when there is some additional side-effect required.
+
+(In addition, you can use this as a non-static method to make your class instances keys that provide their own default factories.)
+
+#### `use.factory`
+
+Like `use.me`, but implemented as an instance method on a class' prototype, for when you need the class to be a key, but want to return an object of a different type, specialized on the actual class looked up.
 
 ### Interfaces
 

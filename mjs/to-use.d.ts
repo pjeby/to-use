@@ -6,7 +6,9 @@ declare type TypedKey = keyof Types | Constructor<any> | Recipe<any>;
 declare type UntypedKey = Function | object;
 declare type Constructor<T> = (new (...args: any[]) => T) | (abstract new (...args: any[]) => T);
 export declare type Factory<T> = (key: Key) => T;
-declare type Provides<K> = K extends Recipe<infer T> ? T : K extends Constructor<infer T> ? T : K extends keyof Types ? Types[K] : K extends UntypedKey ? unknown : never;
+declare type Provides<K> = K extends Constructor<{
+    [useFactory]: Factory<infer T>;
+}> ? T : K extends Recipe<infer T> ? T : K extends Constructor<infer T> ? T : K extends keyof Types ? Types[K] : K extends UntypedKey ? unknown : never;
 /**
  * A callable that looks up lazy-immutable cached values
  */
@@ -42,6 +44,8 @@ export interface GlobalContext extends Configurable {
     get this(): Context;
     /** Define a method with this symbol to allow a key object or class to be its own default factory */
     readonly me: typeof useMe;
+    /** Define a method with this symbol to allow its class to be its own default factory */
+    readonly factory: typeof useFactory;
 }
 /**
  * An object that shares its context as a public `use` property
@@ -68,7 +72,7 @@ export interface Context extends Configurable, Useful {
 export interface Recipe<T> {
     [useMe]: Factory<T>;
 }
-declare const useMe: unique symbol;
+declare const useMe: unique symbol, useFactory: unique symbol;
 /**
  * The "global defaults" configuration and currrent-context accessor
  */

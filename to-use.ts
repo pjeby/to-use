@@ -8,6 +8,7 @@ type Constructor<T> = (new (...args: any[]) => T) | (abstract new (...args: any[
 export type Factory<T> = (key: Key) => T;
 
 type Provides<K> =
+    K extends Constructor<{[useFactory]: Factory<infer T>}> ? T :
     K extends Recipe<infer T> ? T :
     K extends Constructor<infer T> ? T :
     K extends keyof Types ? Types[K] :
@@ -57,6 +58,9 @@ export interface Configurable extends Use {
 
     /** Define a method with this symbol to allow a key object or class to be its own default factory */
     readonly me: typeof useMe
+
+    /** Define a method with this symbol to allow its class to be its own default factory */
+    readonly factory: typeof useFactory
 }
 
 /**
@@ -80,12 +84,12 @@ export interface Context extends Configurable, Useful {}
  * An object that can be used as a key and provides an in-built default factory
  * via its `[use.me]` method. (Typically implemented as a class's static method.)
  */
- export interface Recipe<T> {
+export interface Recipe<T> {
     [useMe]: Factory<T>
 }
 
 
-const useMe = Symbol.for("v1.to-use.peak-dev.org");
+const useMe = Symbol.for("v1.to-use.peak-dev.org"), useFactory = Symbol.for("v1.factory.to-use.peak-dev.org");
 
 /** The "current" context, aka `use.this` */
 let ctx: Context;
@@ -104,7 +108,8 @@ export const use = <GlobalContext> (function () {
                 throw new TypeError("No current context");
             }
         },
-        me: { value: useMe }
+        me: { value: useMe },
+        factory: { value: useFactory },
     });
 
     /** The actual configuration store: a map w/optional parent */
@@ -217,7 +222,9 @@ export const use = <GlobalContext> (function () {
     /** Default lookup: handles [use.me]() and creating service instances */
     function defaultLookup<K extends Key>(key: K): Provides<K> {
         if (typeof key[useMe] === "function") return (key as Recipe<Provides<K>>)[useMe](key);
-        if (isClass<Provides<K>>(key)) return new key();
+        if (isClass<Provides<K>>(key)) {
+            return (typeof key.prototype[useFactory] === "function") ? key.prototype[useFactory]() : new key();
+        }
         throw new ReferenceError(`No config for ${String(key)}`);
     }
 

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.use = void 0;
-const useMe = Symbol.for("v1.to-use.peak-dev.org");
+const useMe = Symbol.for("v1.to-use.peak-dev.org"), useFactory = Symbol.for("v1.factory.to-use.peak-dev.org");
 /** The "current" context, aka `use.this` */
 let ctx;
 /** The active dependency log: tracks keys used during factory execution  */
@@ -18,7 +18,8 @@ exports.use = (function () {
                 throw new TypeError("No current context");
             }
         },
-        me: { value: useMe }
+        me: { value: useMe },
+        factory: { value: useFactory },
     });
     function newCtx(prev) {
         const registry = new Map;
@@ -118,8 +119,9 @@ exports.use = (function () {
     function defaultLookup(key) {
         if (typeof key[useMe] === "function")
             return key[useMe](key);
-        if (isClass(key))
-            return new key();
+        if (isClass(key)) {
+            return (typeof key.prototype[useFactory] === "function") ? key.prototype[useFactory]() : new key();
+        }
         throw new ReferenceError(`No config for ${String(key)}`);
     }
     /**
