@@ -48,7 +48,7 @@ export interface Configurable extends Use {
  * The global "context" can be configured and called, but you can't
  * run or execute anything in it.  Its `.this` property represents the
  * current context, and calling the global context is just shorthand
- * for calling `use.this()`.  Its `.me` property is a symbol you can
+ * for calling `use.this()`.  Its `.me` property is a name you can
  * use to define a custom factory method for classes that can't be
  * constructed without arguments.
  */
@@ -56,10 +56,10 @@ export interface Configurable extends Use {
     /** Obtain the current active context, or throw an error if there isn't one */
     get this(): Context;
 
-    /** Define a method with this symbol to allow a key object or class to be its own default factory */
+    /** Define a method with this name to allow a key object or class to be its own default factory */
     readonly me: typeof useMe
 
-    /** Define a method with this symbol to allow its class to be its own default factory */
+    /** Define a method with this name to allow its class to be its own default factory */
     readonly factory: typeof useFactory
 }
 
@@ -89,7 +89,7 @@ export interface Recipe<T> {
 }
 
 
-const useMe = Symbol.for("v1.to-use.peak-dev.org"), useFactory = Symbol.for("v1.factory.to-use.peak-dev.org");
+const useMe = "use.me", useFactory = "use.factory";
 
 /** The "current" context, aka `use.this` */
 let ctx: Context;
@@ -237,7 +237,7 @@ export const use = <GlobalContext> (function () {
      * though, you probably want to not be using emulated classes as your keys, since you
      * need an environment that supports native classes anyway.)
      */
-    function isClass<T>(f: any): f is new (...args: any[]) => T {
+    function isClass<T>(f: any): f is new () => T {
         return typeof f === "function" && f.prototype !== void 0 && (
             // Classes must be functions with a prototype, and also:
             Object.getPrototypeOf(f.prototype) !== Object.prototype || // be a subclass of something,

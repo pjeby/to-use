@@ -31,14 +31,14 @@ describe("GlobalContext", ()=> {
     });
 
     describe(".me", () => {
-        it("is an interoperable symbol", () => {
-            assert.equal(use.me, Symbol.for("v1.to-use.peak-dev.org"))
+        it("equals 'use.me'", () => {
+            assert.equal(use.me, "use.me")
         });
     });
 
     describe(".factory", () => {
-        it("is an interoperable symbol", () => {
-            assert.equal(use.factory, Symbol.for("v1.factory.to-use.peak-dev.org"))
+        it("equals 'use.factory'", () => {
+            assert.equal(use.factory, "use.factory")
         });
     });
 
