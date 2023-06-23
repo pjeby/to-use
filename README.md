@@ -265,7 +265,7 @@ Please note that you should only globally `.set()` **immutable** values (numbers
 
 While the most commonly-used keys are classes, strings, or symbols, there are also times when making keys out of other objects is helpful, particularly if the objects have some other functionality involved.
 
-`to-use` actually accepts any object or function as a key, and if that object or function has a `[use.this]` method, TypeScript will use that method's return type to figure out what sort of values the key should be `.set()` with, and what factories passed to `.def()` should return.
+`to-use` actually accepts any object or function as a key, and if that object or function has a `"use.me"` method, TypeScript will use that method's return type to figure out what sort of values the key should be `.set()` with, and what factories passed to `.def()` should return.
 
 Such objects are called "recipes" in `to-use` parlance, as they are not just a key to look something up, but also define a recipe for obtaining its default value.  The strict type is `Recipe<T>`, meaning a recipe returning a value of type T.  So if you do something like this:
 
