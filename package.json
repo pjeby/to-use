@@ -1,6 +1,6 @@
 {
   "name": "to-use",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "description": "An ultralight, typesafe, read-consistent DI container that doesn't need decorators or reflection",
   "keywords": [
     "ioc",
@@ -22,7 +22,8 @@
   "scripts": {
     "build": "tsc --build",
     "watch": "mocha --watch",
-    "test": "mocha && tsc --build"
+    "test": "mocha && tsc --build",
+    "prepublishOnly": "mocha && tsc --build"
   },
   "mocha": {
     "spec": "spec.ts",

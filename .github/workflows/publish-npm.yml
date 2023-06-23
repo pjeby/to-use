@@ -12,7 +12,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Build and test
+        shell: bash
+        run: npm install && npm run prepublishOnly
       - uses: JS-DevTools/npm-publish@v2
         with:
           token: ${{ secrets.NPM_TOKEN }}
           access: public
+
