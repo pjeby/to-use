@@ -533,7 +533,7 @@ These types are useful for defining generic functions that wrap `to-use` APIs in
 
 #### `Key`
 
-Something that can be passed as a key to `use()`, `def()`, `set()`, `fork()`, etc. as a key.
+Something that can be passed as a key to `use()`, `def()`, `set()`, `fork()`, etc.
 
 #### `Provides<K>`
 
