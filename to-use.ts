@@ -1,13 +1,13 @@
 /** Add declarations to this interface to get type inference for keys */
 export interface Types {}
 
-type Key = TypedKey | UntypedKey
+export type Key = TypedKey | UntypedKey
 type TypedKey = keyof Types | Constructor<any> | Recipe<any>
 type UntypedKey = Function | object
 type Constructor<T> = (new (...args: any[]) => T) | (abstract new (...args: any[]) => T);
 export type Factory<T> = (key: Key) => T;
 
-type Provides<K> =
+export type Provides<K> =
     K extends Constructor<{[useFactory]: Factory<infer T>}> ? T :
     K extends Recipe<infer T> ? T :
     K extends Constructor<infer T> ? T :

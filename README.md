@@ -525,4 +525,16 @@ A `Factory<T>` is a function that takes a key as its argument and returns a resu
 
 #### `Recipe`
 
-A `Recipe<T>`is an object with a `"use.me"(key): T` method (or class with such a *static* method).  When a Recipe is looked up as a key and no value or factory is found in a context or its parents, the method is called with the key, and the return value is used as the result.
+A `Recipe<T>` is an object with a `"use.me"(key): T` method (or class with such a *static* method).  When a Recipe is looked up as a key and no value or factory is found in a context or its parents, the method is called with the key, and the return value is used as the result.
+
+### Utility Types
+
+These types are useful for defining generic functions that wrap `to-use` APIs in some way.
+
+#### `Key`
+
+Something that can be passed as a key to `use()`, `def()`, `set()`, `fork()`, etc. as a key.
+
+#### `Provides<K>`
+
+The inferred result type of calling `use()` on a key of type `K`.

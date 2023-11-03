@@ -3,6 +3,8 @@
     "compilerOptions": {
         "module": "ESNext",
         "composite": true,
+        "declaration": true,
+        "declarationDir":"./mjs",
         "outDir": "./mjs",
     }
 }

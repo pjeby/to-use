@@ -1,6 +1,6 @@
 {
   "name": "to-use",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "An ultralight, typesafe, read-consistent DI container that doesn't need decorators or reflection",
   "keywords": [
     "ioc",
