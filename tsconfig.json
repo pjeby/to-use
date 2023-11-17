@@ -1,11 +1,16 @@
 {
     "compilerOptions": {
         "target": "es2015",
-        "module": "CommonJS",
-        "outDir": "./cjs",
+        "module": "Node16",
+        "esModuleInterop": true,
+        "composite": true,
+        "declaration": true,
+        "declarationDir":"./mjs",
+        "outDir": "./mjs",
         "newLine": "lf",
+        "moduleResolution": "Node16",
         "lib": ["es2015"]
     },
     "include": [ "to-use.ts" ],
-    "references": [{"path": "./tsconfig.esm.json"}]
+    "references": [{"path": "./tsconfig.cjs.json"}]
 }

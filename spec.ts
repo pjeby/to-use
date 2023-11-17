@@ -111,7 +111,7 @@ describe("Context", () => {
             const ctx = use.fork().def(aNumber, () => use(aNumber));
             assert.throws(
                 () => ctx.use(aNumber),
-                /^Error: Factory \(\) => .*use.*\(aNumber\) didn't resolve Symbol\(aNumber\)$/
+                /^Error: Factory \(\) ?=> ?.*use.*\(aNumber\) didn't resolve Symbol\(aNumber\)$/
             );
         });
 
@@ -218,7 +218,7 @@ describe("Context", () => {
                 function Y() {};
                 assert.throws(
                     () => console.log(use.fork().use(Y)),
-                    /^ReferenceError: No config for function Y\(\) { }$/
+                    /^ReferenceError: No config for function Y\(\) ?{.*}$/
                 )
                 assert.throws(
                     () => console.log(use.fork().use(aNumber)),
